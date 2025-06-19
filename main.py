@@ -51,5 +51,4 @@ class MyPlugin(Star):
                 "messages": [node]
             }
             send_ret = await client.api.call_action('send_group_forward_msg', **forward_payloads)
-            logger.info(f"send_group_forward_msg: {send_ret}")
-            yield
+            event.stop_event()
