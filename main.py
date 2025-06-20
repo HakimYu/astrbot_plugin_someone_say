@@ -1,24 +1,13 @@
-from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
+from astrbot.api.event import filter, AstrMessageEvent, MessageChain
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 from astrbot.api.message_components import At, Node, Plain
 
 
-@register("someone_say", "HakimYu", "让某人说话", "1.0.0")
+@register("someone_say", "HakimYu", "让某人说话", "1.0.1")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-
-    def _create_forward_node(self, user_id: str, nickname: str, content: str) -> dict:
-        """创建转发节点"""
-        return {
-            "type": "node",
-            "data": {
-                "user_id": user_id,
-                "nickname": nickname,
-                "content": [{"type": "text", "data": {"text": content}}]
-            }
-        }
 
     @filter.command("someone_say")
     async def someone_say(self, event: AstrMessageEvent, atStr: str, content: str):
@@ -39,16 +28,12 @@ class MyPlugin(Star):
                 break
         if at is None:
             yield event.plain_result("请@一个用户")
-            return
-        if event.get_platform_name() == "aiocqhttp":
-            from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import AiocqhttpMessageEvent
-            assert isinstance(event, AiocqhttpMessageEvent)
-            client = event.bot  # 得到 client
-            # 构造合并转发节点
-            node = self._create_forward_node(str(at), atName, content)
-            forward_payloads = {
-                "group_id": int(event.get_group_id()),
-                "messages": [node]
-            }
-            send_ret = await client.api.call_action('send_group_forward_msg', **forward_payloads)
-            event.stop_event()
+
+        await event.send(event.chain_result([Node(
+            uin=at,
+            name=atName,
+            content=[
+                Plain(content),
+            ]
+        )]))
+        event.stop_event()
