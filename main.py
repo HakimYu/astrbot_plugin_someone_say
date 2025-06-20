@@ -1,10 +1,12 @@
-from astrbot.api.event import filter, AstrMessageEvent, MessageChain
+from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
-from astrbot.api.message_components import At, Node, Plain
+from astrbot.api.message_components import At, Node, Plain, Nodes
+from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import AiocqhttpMessageEvent
+import random
 
 
-@register("someone_say", "HakimYu", "让某人说话", "1.0.1")
+@register("someone_say", "HakimYu", "让某人说话", "1.0.3")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -36,4 +38,26 @@ class MyPlugin(Star):
                 Plain(content),
             ]
         )]))
+        event.stop_event()
+
+    @filter.command("everyone_say")
+    async def everyone_say(self, event: AstrMessageEvent, content: str, num: int = 10):
+        """让大家说话，以合并转发消息的形式发送出来"""
+        msgs = []
+        assert isinstance(event, AiocqhttpMessageEvent)
+        client = event.bot  # 得到 client
+        g = await client.get_group_member_list(group_id=event.get_group_id())
+        random.shuffle(g)
+
+        count = 0
+        node_list = []
+
+        for person in g:
+            if count >= 50 or count >= num:
+                break
+            node_list.append(Node(uin=person["user_id"],
+                                  name=person["nickname"],
+                                  content=[Plain(content)]))
+            count += 1
+        await event.send(event.chain_result([Nodes(node_list)]))
         event.stop_event()
